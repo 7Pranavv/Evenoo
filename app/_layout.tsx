@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
@@ -14,24 +14,36 @@ try {
 }
 
 export default function RootLayout() {
+  const [isReady, setIsReady] = useState(false);
   useFrameworkReady();
 
   useEffect(() => {
-    SplashScreen.hideAsync();
+    const hideSplash = async () => {
+      try {
+        await SplashScreen.hideAsync();
+      } catch (e) {
+        // Ignore
+      }
+      setIsReady(true);
+    };
+
+    hideSplash();
   }, []);
 
   return (
     <ErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="index" />
-            <Stack.Screen name="(auth)" />
-            <Stack.Screen name="(participant)" />
-            <Stack.Screen name="(organizer)" />
-            <Stack.Screen name="(vendor)" />
-            <Stack.Screen name="+not-found" />
-          </Stack>
+          {isReady && (
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="index" />
+              <Stack.Screen name="(auth)" />
+              <Stack.Screen name="(participant)" />
+              <Stack.Screen name="(organizer)" />
+              <Stack.Screen name="(vendor)" />
+              <Stack.Screen name="+not-found" />
+            </Stack>
+          )}
           <StatusBar style="auto" />
         </SafeAreaProvider>
       </GestureHandlerRootView>
