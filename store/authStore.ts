@@ -96,11 +96,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setRole: async (role: string) => {
     set({ loading: true });
-    const { user } = get();
-    if (!user) { set({ loading: false }); return { error: 'Not authenticated' }; }
-    const { error } = await supabase.from('users').update({ role, updated_at: new Date().toISOString() }).eq('id', user.id);
+    const { session, user } = get();
+    if (!session?.user?.id) { set({ loading: false }); return { error: 'Not authenticated' }; }
+    const userId = user?.id || session.user.id;
+    const { error } = await supabase.from('users').update({ role, updated_at: new Date().toISOString() }).eq('id', userId);
     if (error) { set({ loading: false }); return { error: error.message }; }
-    set({ user: { ...user, role: role as any }, loading: false });
+    if (user) {
+      set({ user: { ...user, role: role as any }, loading: false });
+    } else {
+      await get().fetchUser(userId);
+      set({ loading: false });
+    }
     return { error: null };
   },
 
