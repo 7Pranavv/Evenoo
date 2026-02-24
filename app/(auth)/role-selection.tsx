@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { User, Briefcase, ShoppingBag, Shield, Check } from 'lucide-react-native';
+import { User, Briefcase, ShoppingBag, Check } from 'lucide-react-native';
 import { useAuthStore } from '@/store/authStore';
 import { GradientButton } from '@/components/ui/GradientButton';
 import { useTheme } from '@/hooks/useTheme';
