@@ -11,7 +11,6 @@ const ROLES = [
   { key: 'participant', label: 'Participant', desc: 'Discover events, register as individual or team, manage tickets', icon: User, color: '#FF1E2D' },
   { key: 'organizer', label: 'Organizer', desc: 'Create and manage events, track registrations and revenue', icon: Briefcase, color: '#FF5A1F' },
   { key: 'vendor', label: 'Vendor', desc: 'List services, manage inventory, accept bookings from organizers', icon: ShoppingBag, color: '#FFB300' },
-  { key: 'admin', label: 'Admin', desc: 'Platform administration, event approvals, user management', icon: Shield, color: '#0F172A' },
 ];
 
 export default function RoleSelectionScreen() {
