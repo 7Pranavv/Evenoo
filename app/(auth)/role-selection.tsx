@@ -26,6 +26,7 @@ export default function RoleSelectionScreen() {
     switch (selected) {
       case 'organizer': router.replace('/(organizer)'); break;
       case 'vendor': router.replace('/(vendor)'); break;
+      case 'admin': router.replace('/(admin)'); break;
       default: router.replace('/(participant)');
     }
   };

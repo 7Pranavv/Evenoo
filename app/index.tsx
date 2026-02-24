@@ -44,6 +44,9 @@ export default function Index() {
       case 'vendor':
         router.replace('/(vendor)');
         break;
+      case 'admin':
+        router.replace('/(admin)');
+        break;
       default:
         router.replace('/(participant)');
     }
