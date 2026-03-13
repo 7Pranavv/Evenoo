@@ -70,8 +70,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ loading: true });
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) { set({ loading: false }); return { error: error.message }; }
-    if (data.user) await get().fetchUser(data.user.id);
-    set({ session: data.session, loading: false });
+    set({ session: data.session });
+    if (data.user) {
+      await get().fetchUser(data.user.id);
+    }
+    set({ loading: false });
     return { error: null };
   },
 
@@ -101,12 +104,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const userId = user?.id || session.user.id;
     const { error } = await supabase.from('users').update({ role, updated_at: new Date().toISOString() }).eq('id', userId);
     if (error) { set({ loading: false }); return { error: error.message }; }
+
+    // Update user object immediately to prevent race condition
     if (user) {
-      set({ user: { ...user, role: role as any }, loading: false });
+      set({ user: { ...user, role: role as any } });
     } else {
       await get().fetchUser(userId);
-      set({ loading: false });
     }
+    set({ loading: false });
     return { error: null };
   },
 

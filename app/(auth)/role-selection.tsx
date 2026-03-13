@@ -22,6 +22,10 @@ export default function RoleSelectionScreen() {
   const handleContinue = async () => {
     const { error } = await setRole(selected);
     if (error) return;
+
+    // Small delay to ensure state is updated before navigation
+    await new Promise(resolve => setTimeout(resolve, 100));
+
     switch (selected) {
       case 'organizer': router.replace('/(organizer)'); break;
       case 'vendor': router.replace('/(vendor)'); break;
