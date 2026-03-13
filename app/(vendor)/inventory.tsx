@@ -8,7 +8,6 @@ import { GradientButton } from '@/components/ui/GradientButton';
 import { Input } from '@/components/ui/Input';
 import { useTheme } from '@/hooks/useTheme';
 import { getCollection, createDocument, setDocument, updateDocument, deleteDocument } from '@/lib/db';
-import { where, orderBy } from 'firebase/firestore';
 import { VendorInventoryItem } from '@/types';
 
 const ITEM_CATEGORIES = ['Photography', 'Catering', 'Sound', 'Lighting', 'Decoration', 'Anchor/MC', 'Security', 'Other'];

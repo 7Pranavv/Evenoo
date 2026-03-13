@@ -6,7 +6,6 @@ import { router } from 'expo-router';
 import { EventCard } from '@/components/participant/EventCard';
 import { useTheme } from '@/hooks/useTheme';
 import { getCollection } from '@/lib/db';
-import { where, limit } from 'firebase/firestore';
 import { Event } from '@/types';
 
 const MOCK_EVENTS: Partial<Event>[] = [

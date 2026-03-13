@@ -7,7 +7,6 @@ import { StatusBadge } from '@/components/ui/Badge';
 import { GradientButton } from '@/components/ui/GradientButton';
 import { useTheme } from '@/hooks/useTheme';
 import { getCollection, updateDocument } from '@/lib/db';
-import { where, orderBy } from 'firebase/firestore';
 import { VendorBooking } from '@/types';
 
 export default function VendorBookingsScreen() {

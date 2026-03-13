@@ -4,7 +4,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Calendar, User, X, Check, Circle as XCircle } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
 import { getCollection, updateDocument, createDocument } from '@/lib/db';
-import { where, orderBy } from 'firebase/firestore';
 import { Event } from '@/types';
 
 export default function ApprovalsScreen() {

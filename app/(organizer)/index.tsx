@@ -10,7 +10,6 @@ import { StatusBadge } from '@/components/ui/Badge';
 import { GradientButton } from '@/components/ui/GradientButton';
 import { useTheme } from '@/hooks/useTheme';
 import { getCollection } from '@/lib/db';
-import { where, orderBy, limit } from 'firebase/firestore';
 import { Event } from '@/types';
 
 export default function OrganizerDashboard() {

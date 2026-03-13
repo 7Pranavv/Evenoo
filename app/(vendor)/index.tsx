@@ -8,7 +8,6 @@ import { StatCard } from '@/components/organizer/StatCard';
 import { GradientButton } from '@/components/ui/GradientButton';
 import { useTheme } from '@/hooks/useTheme';
 import { getCollection, getDocument } from '@/lib/db';
-import { where } from 'firebase/firestore';
 
 export default function VendorDashboard() {
   const { user } = useAuthStore();

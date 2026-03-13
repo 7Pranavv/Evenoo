@@ -7,7 +7,6 @@ import { StatusBadge } from '@/components/ui/Badge';
 import { GradientButton } from '@/components/ui/GradientButton';
 import { useTheme } from '@/hooks/useTheme';
 import { getDocument, getCollection, updateDocument } from '@/lib/db';
-import { where, limit } from 'firebase/firestore';
 import { Event, Ticket } from '@/types';
 
 export default function EventManagementScreen() {

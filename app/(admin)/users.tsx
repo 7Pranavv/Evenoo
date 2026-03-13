@@ -4,7 +4,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Mail, Shield, X, CreditCard as Edit2 } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
 import { getCollection } from '@/lib/db';
-import { orderBy } from 'firebase/firestore';
 import { User } from '@/types';
 
 export default function UsersScreen() {

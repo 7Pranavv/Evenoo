@@ -4,7 +4,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CircleAlert as AlertCircle, TrendingUp, Users, Calendar, CircleCheck as CheckCircle2 } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
 import { getCollection } from '@/lib/db';
-import { where } from 'firebase/firestore';
 import { router } from 'expo-router';
 
 interface AdminStats {

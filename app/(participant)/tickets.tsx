@@ -6,7 +6,6 @@ import { useAuthStore } from '@/store/authStore';
 import { TicketCard } from '@/components/participant/TicketCard';
 import { useTheme } from '@/hooks/useTheme';
 import { getCollection, getDocument } from '@/lib/db';
-import { where, orderBy } from 'firebase/firestore';
 import { Ticket } from '@/types';
 
 const MOCK_TICKETS: Ticket[] = [

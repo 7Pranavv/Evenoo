@@ -11,7 +11,6 @@ import { useAuthStore } from '@/store/authStore';
 import { EventCard } from '@/components/participant/EventCard';
 import { useTheme } from '@/hooks/useTheme';
 import { getCollection } from '@/lib/db';
-import { where, limit } from 'firebase/firestore';
 import { Event } from '@/types';
 
 const { width } = Dimensions.get('window');

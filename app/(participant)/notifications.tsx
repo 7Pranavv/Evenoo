@@ -6,7 +6,6 @@ import { router } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import { useTheme } from '@/hooks/useTheme';
 import { getCollection, updateDocument } from '@/lib/db';
-import { where, orderBy } from 'firebase/firestore';
 import { Notification } from '@/types';
 
 const MOCK_NOTIFS: Notification[] = [

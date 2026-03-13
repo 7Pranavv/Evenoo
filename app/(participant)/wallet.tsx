@@ -7,7 +7,6 @@ import { useAuthStore } from '@/store/authStore';
 import { GradientButton } from '@/components/ui/GradientButton';
 import { useTheme } from '@/hooks/useTheme';
 import { getCollection, createDocument, updateDocument } from '@/lib/db';
-import { where, orderBy } from 'firebase/firestore';
 import { WalletTransaction } from '@/types';
 
 const MOCK_TX: WalletTransaction[] = [

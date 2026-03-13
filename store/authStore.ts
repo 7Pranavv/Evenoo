@@ -1,18 +1,10 @@
 import { create } from 'zustand';
-import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut as firebaseSignOut,
-  onAuthStateChanged,
-  User as FirebaseUser,
-} from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { supabase } from '@/lib/supabase';
 import { getDocument, setDocument, updateDocument } from '@/lib/db';
 import { User } from '@/types';
 
 interface AuthState {
   user: User | null;
-  firebaseUser: FirebaseUser | null;
   initialized: boolean;
   loading: boolean;
   initialize: () => void;
@@ -25,16 +17,14 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
-  firebaseUser: null,
   initialized: false,
   loading: false,
 
   initialize: () => {
-    onAuthStateChanged(auth, (firebaseUser) => {
+    supabase.auth.onAuthStateChange((event, session) => {
       (async () => {
-        set({ firebaseUser });
-        if (firebaseUser) {
-          await get().fetchUser(firebaseUser.uid);
+        if (session?.user) {
+          await get().fetchUser(session.user.id);
         } else {
           set({ user: null, initialized: true });
         }
@@ -54,54 +44,92 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signIn: async (email: string, password: string) => {
     set({ loading: true });
     try {
-      const cred = await signInWithEmailAndPassword(auth, email, password);
-      await get().fetchUser(cred.user.uid);
-      set({ firebaseUser: cred.user, loading: false });
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        set({ loading: false });
+        const msg =
+          error.message === 'Invalid login credentials'
+            ? 'Invalid email or password'
+            : error.message;
+        return { error: msg };
+      }
+
+      if (data.user) {
+        await get().fetchUser(data.user.id);
+      }
+      set({ loading: false });
       return { error: null };
     } catch (error: any) {
       set({ loading: false });
-      const msg = error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password'
-        ? 'Invalid email or password'
-        : error.message;
-      return { error: msg };
+      return { error: error.message };
     }
   },
 
   signUp: async (email: string, password: string, name: string) => {
     set({ loading: true });
     try {
-      const cred = await createUserWithEmailAndPassword(auth, email, password);
-      const profile: Omit<User, 'id'> = {
-        name,
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
-        role: 'participant',
-        avatar_url: null,
-        wallet_balance: 0,
-        organizer_verification_status: 'unverified',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-      await setDocument('users', cred.user.uid, profile);
-      await get().fetchUser(cred.user.uid);
-      set({ firebaseUser: cred.user, loading: false });
+        password,
+      });
+
+      if (authError) {
+        set({ loading: false });
+        const msg = authError.message.includes('already registered')
+          ? 'An account with this email already exists'
+          : authError.message;
+        return { error: msg };
+      }
+
+      if (authData.user) {
+        const profile: Omit<User, 'id'> = {
+          name,
+          email,
+          role: 'participant',
+          avatar_url: null,
+          wallet_balance: 0,
+          organizer_verification_status: 'unverified',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+
+        const { error: dbError } = await supabase.from('users').insert([
+          {
+            id: authData.user.id,
+            ...profile,
+          },
+        ]);
+
+        if (dbError) {
+          set({ loading: false });
+          return { error: dbError.message };
+        }
+
+        await get().fetchUser(authData.user.id);
+      }
+      set({ loading: false });
       return { error: null };
     } catch (error: any) {
       set({ loading: false });
-      const msg = error.code === 'auth/email-already-in-use'
-        ? 'An account with this email already exists'
-        : error.message;
-      return { error: msg };
+      return { error: error.message };
     }
   },
 
   setRole: async (role: string) => {
     set({ loading: true });
-    const { firebaseUser, user } = get();
-    if (!firebaseUser) { set({ loading: false }); return { error: 'Not authenticated' }; }
+    const { user } = get();
+    if (!user) {
+      set({ loading: false });
+      return { error: 'Not authenticated' };
+    }
     try {
-      await updateDocument('users', firebaseUser.uid, { role });
+      await updateDocument('users', user.id, { role });
       if (user) set({ user: { ...user, role: role as any } });
-      else await get().fetchUser(firebaseUser.uid);
+      else await get().fetchUser(user.id);
       set({ loading: false });
       return { error: null };
     } catch (error: any) {
@@ -111,7 +139,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signOut: async () => {
-    await firebaseSignOut(auth);
-    set({ user: null, firebaseUser: null });
+    await supabase.auth.signOut();
+    set({ user: null });
   },
 }));

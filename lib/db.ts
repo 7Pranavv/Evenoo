@@ -1,72 +1,119 @@
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  addDoc,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  query,
-  where,
-  orderBy,
-  limit,
-  QueryConstraint,
-  DocumentData,
-  WithFieldValue,
-  serverTimestamp,
-} from 'firebase/firestore';
-import { db } from './firebase';
+import { supabase } from './supabase';
 
-export { serverTimestamp };
+export const getDocument = async <T extends { id?: string }>(
+  table: string,
+  id: string
+): Promise<T | null> => {
+  const { data, error } = await supabase
+    .from(table)
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
 
-export const getDocument = async <T>(collectionName: string, id: string): Promise<T | null> => {
-  const ref = doc(db, collectionName, id);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) return null;
-  return { id: snap.id, ...snap.data() } as T;
+  if (error) {
+    console.error(`Error fetching ${table}:`, error);
+    return null;
+  }
+
+  return data as T | null;
 };
 
 export const getCollection = async <T>(
-  collectionName: string,
-  constraints: QueryConstraint[] = []
+  table: string,
+  filters?: Array<{ column: string; value: any; operator?: string }>
 ): Promise<T[]> => {
-  const ref = collection(db, collectionName);
-  const q = constraints.length > 0 ? query(ref, ...constraints) : query(ref);
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as T));
+  let query = supabase.from(table).select('*');
+
+  if (filters) {
+    for (const filter of filters) {
+      const operator = filter.operator || 'eq';
+      query = query.filter(filter.column, operator, filter.value) as any;
+    }
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error(`Error fetching ${table}:`, error);
+    return [];
+  }
+
+  return (data as T[]) || [];
 };
 
-export const createDocument = async <T extends DocumentData>(
-  collectionName: string,
-  data: WithFieldValue<T>
-): Promise<string> => {
-  const ref = collection(db, collectionName);
-  const docRef = await addDoc(ref, { ...data, created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
-  return docRef.id;
+export const createDocument = async <T extends { id?: string }>(
+  table: string,
+  data: Omit<T, 'id' | 'created_at' | 'updated_at'>
+): Promise<string | null> => {
+  const { data: result, error } = await supabase
+    .from(table)
+    .insert([
+      {
+        ...data,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    ])
+    .select('id')
+    .single();
+
+  if (error) {
+    console.error(`Error creating ${table}:`, error);
+    return null;
+  }
+
+  return result?.id || null;
 };
 
-export const setDocument = async <T extends DocumentData>(
-  collectionName: string,
+export const setDocument = async <T extends { id?: string }>(
+  table: string,
   id: string,
-  data: WithFieldValue<T>
-): Promise<void> => {
-  const ref = doc(db, collectionName, id);
-  await setDoc(ref, { ...data, created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+  data: Omit<T, 'id'>
+): Promise<boolean> => {
+  const { error } = await supabase
+    .from(table)
+    .update({
+      ...data,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id);
+
+  if (error) {
+    console.error(`Error updating ${table}:`, error);
+    return false;
+  }
+
+  return true;
 };
 
 export const updateDocument = async (
-  collectionName: string,
+  table: string,
   id: string,
-  data: Partial<DocumentData>
-): Promise<void> => {
-  const ref = doc(db, collectionName, id);
-  await updateDoc(ref, { ...data, updated_at: new Date().toISOString() });
+  data: Record<string, any>
+): Promise<boolean> => {
+  const { error } = await supabase
+    .from(table)
+    .update({
+      ...data,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id);
+
+  if (error) {
+    console.error(`Error updating ${table}:`, error);
+    return false;
+  }
+
+  return true;
 };
 
-export const deleteDocument = async (collectionName: string, id: string): Promise<void> => {
-  const ref = doc(db, collectionName, id);
-  await deleteDoc(ref);
-};
+export const deleteDocument = async (table: string, id: string): Promise<boolean> => {
+  const { error } = await supabase.from(table).delete().eq('id', id);
 
-export { where, orderBy, limit, collection, doc, query, getDocs, getDoc, updateDoc, deleteDoc };
+  if (error) {
+    console.error(`Error deleting ${table}:`, error);
+    return false;
+  }
+
+  return true;
+};

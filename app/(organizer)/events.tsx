@@ -8,7 +8,6 @@ import { StatusBadge } from '@/components/ui/Badge';
 import { GradientButton } from '@/components/ui/GradientButton';
 import { useTheme } from '@/hooks/useTheme';
 import { getCollection } from '@/lib/db';
-import { where, orderBy } from 'firebase/firestore';
 import { Event } from '@/types';
 
 const STATUS_FILTERS = [
