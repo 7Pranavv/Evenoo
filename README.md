@@ -27,8 +27,8 @@ Evenoo is a multi-role platform supporting four user types:
 - **Expo Vector Icons** - Additional icon set
 
 ### Database & Backend
-- **Supabase** - PostgreSQL database with real-time capabilities
-- **@supabase/supabase-js 2.58.0** - Supabase client
+- **Firebase** - Cloud Firestore and Authentication
+- **Firebase SDK 12.10.0** - Firebase client library
 
 ### Navigation
 - **Expo Router** - App routing and navigation
@@ -95,7 +95,8 @@ Evenoo is a multi-role platform supporting four user types:
 │       ├── EventCard.tsx          # Event listing card
 │       └── TicketCard.tsx         # Ticket display
 ├── lib/                           # Utilities and config
-│   ├── supabase.ts                # Supabase client setup
+│   ├── firebase.ts                # Firebase client setup
+│   ├── db.ts                      # Firestore database utilities
 │   └── theme.ts                   # Theme configuration
 ├── hooks/                         # React hooks
 │   ├── useTheme.ts                # Theme management
@@ -117,7 +118,7 @@ Evenoo is a multi-role platform supporting four user types:
 ### Authentication
 - Email/password signup and login
 - Multi-role user system
-- Secure session management with Supabase Auth
+- Secure session management with Firebase Authentication
 
 ### Event Management
 - Create events with comprehensive details
@@ -166,7 +167,7 @@ Evenoo is a multi-role platform supporting four user types:
 
 ## Database Schema
 
-The application uses Supabase (PostgreSQL) with the following main tables:
+The application uses Firebase Firestore with the following main collections:
 - `users` - User accounts and profiles
 - `events` - Event details and configuration
 - `registrations` - Event registrations
@@ -179,14 +180,14 @@ The application uses Supabase (PostgreSQL) with the following main tables:
 - `categories` - Event categories
 - `subcategories` - Event subcategories
 
-Row Level Security (RLS) policies ensure users only access their own data.
+Firebase Security Rules ensure users only access their own data.
 
 ## Getting Started
 
 ### Prerequisites
 - Node.js 16+ and npm
 - Expo CLI
-- Supabase account
+- Firebase account
 
 ### Setup
 
@@ -198,8 +199,12 @@ Row Level Security (RLS) policies ensure users only access their own data.
 
 3. Configure environment variables in `.env`:
    ```
-   EXPO_PUBLIC_SUPABASE_URL=your_supabase_url
-   EXPO_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+   EXPO_PUBLIC_FIREBASE_API_KEY=your_api_key
+   EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=your_auth_domain
+   EXPO_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
+   EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=your_storage_bucket
+   EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+   EXPO_PUBLIC_FIREBASE_APP_ID=your_app_id
    ```
 
 4. Start the development server:
@@ -238,8 +243,8 @@ Add new types to `/types/index.ts` and keep them organized by feature.
 
 ## Security
 
-- Database queries use Row Level Security (RLS) policies
-- Authentication handled through Supabase
+- Database queries use Firebase Security Rules
+- Authentication handled through Firebase Auth
 - Sensitive operations require proper authorization
 - User input validation on both client and server
 
@@ -256,7 +261,7 @@ Add new types to `/types/index.ts` and keep them organized by feature.
 ### Authentication Issues
 - Clear app cache and restart dev server
 - Verify environment variables are set correctly
-- Check Supabase connection status
+- Check Firebase connection status
 
 ### Build Errors
 - Run `npm install` to ensure all dependencies are installed
