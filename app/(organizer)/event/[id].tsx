@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Search, CheckCircle, XCircle, Users, Calendar } from 'lucide-react-native';
+import { ArrowLeft, Search, CircleCheck as CheckCircle, Circle as XCircle, Users, Calendar } from 'lucide-react-native';
 import { StatusBadge } from '@/components/ui/Badge';
 import { GradientButton } from '@/components/ui/GradientButton';
 import { useTheme } from '@/hooks/useTheme';
-import { supabase } from '@/lib/supabase';
+import { getDocument, getCollection, updateDocument } from '@/lib/db';
+import { where, limit } from 'firebase/firestore';
 import { Event, Ticket } from '@/types';
 
 export default function EventManagementScreen() {
@@ -26,10 +27,12 @@ export default function EventManagementScreen() {
   useEffect(() => {
     if (!id) return;
     (async () => {
-      const { data } = await supabase.from('events').select('*').eq('id', id).maybeSingle();
-      setEvent(data as Event);
-      const { data: regs } = await supabase.from('registrations').select('*').eq('event_id', id).limit(20);
-      setRegistrations(regs ?? []);
+      try {
+        const eventData = await getDocument<Event>('events', id as string);
+        setEvent(eventData);
+        const regs = await getCollection<any>('registrations', [where('event_id', '==', id), limit(20)]);
+        setRegistrations(regs);
+      } catch {}
       setLoading(false);
     })();
   }, [id]);
@@ -39,17 +42,23 @@ export default function EventManagementScreen() {
     setVerifying(true);
     setTicketResult(null);
     setTicketError('');
-    const { data } = await supabase.from('tickets').select('*, events(name, event_start, venue_name)').eq('id', ticketId.trim().toUpperCase()).maybeSingle();
-    if (!data) setTicketError('Ticket not found. Please check the ID and try again.');
-    else setTicketResult(data as Ticket);
+    try {
+      const ticket = await getDocument<Ticket>('tickets', ticketId.trim().toUpperCase());
+      if (!ticket) setTicketError('Ticket not found. Please check the ID and try again.');
+      else setTicketResult(ticket);
+    } catch {
+      setTicketError('Ticket not found. Please check the ID and try again.');
+    }
     setVerifying(false);
   };
 
   const checkIn = async () => {
     if (!ticketResult) return;
     setCheckingIn(true);
-    await supabase.from('tickets').update({ status: 'used', checked_in_at: new Date().toISOString() }).eq('id', ticketResult.id);
-    setTicketResult({ ...ticketResult, status: 'used' });
+    try {
+      await updateDocument('tickets', ticketResult.id, { status: 'used', checked_in_at: new Date().toISOString() });
+      setTicketResult({ ...ticketResult, status: 'used' });
+    } catch {}
     setCheckingIn(false);
   };
 

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AlertCircle, TrendingUp, Users, Calendar, CheckCircle2 } from 'lucide-react-native';
+import { CircleAlert as AlertCircle, TrendingUp, Users, Calendar, CircleCheck as CheckCircle2 } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
-import { supabase } from '@/lib/supabase';
+import { getCollection } from '@/lib/db';
+import { where } from 'firebase/firestore';
 import { router } from 'expo-router';
 
 interface AdminStats {
@@ -26,23 +27,19 @@ export default function AdminDashboard() {
   const fetchStats = async () => {
     try {
       setLoading(true);
-      const [eventsRes, usersRes] = await Promise.all([
-        supabase.from('events').select('status', { count: 'exact' }),
-        supabase.from('users').select('id', { count: 'exact' }),
+      const [events, users] = await Promise.all([
+        getCollection<any>('events', []),
+        getCollection<any>('users', []),
       ]);
-
-      const events = eventsRes.data || [];
       const pendingCount = events.filter((e: any) => e.status === 'pending_approval').length;
       const liveCount = events.filter((e: any) => e.status === 'live').length;
-
       setStats({
         pendingApprovals: pendingCount,
-        totalEvents: eventsRes.count || 0,
-        totalUsers: usersRes.count || 0,
+        totalEvents: events.length,
+        totalUsers: users.length,
         liveEvents: liveCount,
       });
-    } catch (error) {
-      console.error('Error fetching admin stats:', error);
+    } catch {
     } finally {
       setLoading(false);
     }

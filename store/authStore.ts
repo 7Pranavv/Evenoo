@@ -1,13 +1,21 @@
 import { create } from 'zustand';
-import { supabase } from '@/lib/supabase';
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  onAuthStateChanged,
+  User as FirebaseUser,
+} from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { getDocument, setDocument, updateDocument } from '@/lib/db';
 import { User } from '@/types';
 
 interface AuthState {
   user: User | null;
-  session: any | null;
+  firebaseUser: FirebaseUser | null;
   initialized: boolean;
   loading: boolean;
-  initialize: () => Promise<void>;
+  initialize: () => void;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string, name: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
@@ -17,40 +25,18 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
-  session: null,
+  firebaseUser: null,
   initialized: false,
   loading: false,
 
-  initialize: async () => {
-    try {
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Auth timeout')), 3000)
-      );
-
-      const sessionPromise = supabase.auth.getSession();
-      const result = await Promise.race([sessionPromise, timeoutPromise]);
-      const { data: { session } } = result as any;
-
-      set({ session });
-      if (session?.user) {
-        await get().fetchUser(session.user.id);
-      } else {
-        set({ user: null });
-      }
-    } catch (error) {
-      console.error('Auth init error:', error);
-      set({ user: null, session: null });
-    } finally {
-      set({ initialized: true });
-    }
-
-    supabase.auth.onAuthStateChange((event, session) => {
+  initialize: () => {
+    onAuthStateChanged(auth, (firebaseUser) => {
       (async () => {
-        set({ session });
-        if (session?.user) {
-          await get().fetchUser(session.user.id);
+        set({ firebaseUser });
+        if (firebaseUser) {
+          await get().fetchUser(firebaseUser.uid);
         } else {
-          set({ user: null });
+          set({ user: null, initialized: true });
         }
       })();
     });
@@ -58,65 +44,74 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   fetchUser: async (uid: string) => {
     try {
-      const { data } = await supabase.from('users').select('*').eq('id', uid).maybeSingle();
-      set({ user: data as User | null });
+      const userData = await getDocument<User>('users', uid);
+      set({ user: userData, initialized: true });
     } catch (error) {
-      console.error('Error fetching user:', error);
-      set({ user: null });
+      set({ user: null, initialized: true });
     }
   },
 
   signIn: async (email: string, password: string) => {
     set({ loading: true });
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) { set({ loading: false }); return { error: error.message }; }
-    set({ session: data.session });
-    if (data.user) {
-      await get().fetchUser(data.user.id);
+    try {
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      await get().fetchUser(cred.user.uid);
+      set({ firebaseUser: cred.user, loading: false });
+      return { error: null };
+    } catch (error: any) {
+      set({ loading: false });
+      const msg = error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password'
+        ? 'Invalid email or password'
+        : error.message;
+      return { error: msg };
     }
-    set({ loading: false });
-    return { error: null };
   },
 
   signUp: async (email: string, password: string, name: string) => {
     set({ loading: true });
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) { set({ loading: false }); return { error: error.message }; }
-    if (!data.user) { set({ loading: false }); return { error: 'Signup failed' }; }
-    const { error: profileError } = await supabase.from('users').insert({
-      id: data.user.id,
-      name,
-      email,
-      role: 'participant',
-      wallet_balance: 0,
-      organizer_verification_status: 'unverified',
-    });
-    if (profileError) { set({ loading: false }); return { error: profileError.message }; }
-    await get().fetchUser(data.user.id);
-    set({ session: data.session, loading: false });
-    return { error: null };
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      const profile: Omit<User, 'id'> = {
+        name,
+        email,
+        role: 'participant',
+        avatar_url: null,
+        wallet_balance: 0,
+        organizer_verification_status: 'unverified',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      await setDocument('users', cred.user.uid, profile);
+      await get().fetchUser(cred.user.uid);
+      set({ firebaseUser: cred.user, loading: false });
+      return { error: null };
+    } catch (error: any) {
+      set({ loading: false });
+      const msg = error.code === 'auth/email-already-in-use'
+        ? 'An account with this email already exists'
+        : error.message;
+      return { error: msg };
+    }
   },
 
   setRole: async (role: string) => {
     set({ loading: true });
-    const { session, user } = get();
-    if (!session?.user?.id) { set({ loading: false }); return { error: 'Not authenticated' }; }
-    const userId = user?.id || session.user.id;
-    const { error } = await supabase.from('users').update({ role, updated_at: new Date().toISOString() }).eq('id', userId);
-    if (error) { set({ loading: false }); return { error: error.message }; }
-
-    // Update user object immediately to prevent race condition
-    if (user) {
-      set({ user: { ...user, role: role as any } });
-    } else {
-      await get().fetchUser(userId);
+    const { firebaseUser, user } = get();
+    if (!firebaseUser) { set({ loading: false }); return { error: 'Not authenticated' }; }
+    try {
+      await updateDocument('users', firebaseUser.uid, { role });
+      if (user) set({ user: { ...user, role: role as any } });
+      else await get().fetchUser(firebaseUser.uid);
+      set({ loading: false });
+      return { error: null };
+    } catch (error: any) {
+      set({ loading: false });
+      return { error: error.message };
     }
-    set({ loading: false });
-    return { error: null };
   },
 
   signOut: async () => {
-    await supabase.auth.signOut();
-    set({ user: null, session: null });
+    await firebaseSignOut(auth);
+    set({ user: null, firebaseUser: null });
   },
 }));

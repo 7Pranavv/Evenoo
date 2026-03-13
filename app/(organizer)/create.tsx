@@ -12,7 +12,7 @@ import { useEventDraftStore } from '@/store/eventDraftStore';
 import { GradientButton } from '@/components/ui/GradientButton';
 import { Input } from '@/components/ui/Input';
 import { useTheme } from '@/hooks/useTheme';
-import { supabase } from '@/lib/supabase';
+import { createDocument } from '@/lib/db';
 
 const TOTAL_STEPS = 7;
 
@@ -36,7 +36,7 @@ export default function CreateEventScreen() {
   const next = () => { if (currentStep < TOTAL_STEPS - 1) setStep(currentStep + 1); };
   const back = () => { if (currentStep > 0) setStep(currentStep - 1); };
 
-  const saveToSupabase = async (status: 'draft' | 'pending_approval') => {
+  const saveEvent = async (status: 'draft' | 'pending_approval') => {
     if (!user?.id) return;
     setSaving(true);
     const payload = {
@@ -76,12 +76,14 @@ export default function CreateEventScreen() {
       status,
     };
 
-    const { error } = await supabase.from('events').insert(payload);
-    setSaving(false);
-    if (error) {
-      Alert.alert('Error', error.message);
+    try {
+      await createDocument('events', payload);
+    } catch (err: any) {
+      setSaving(false);
+      Alert.alert('Error', err.message ?? 'Failed to save event');
       return;
     }
+    setSaving(false);
     reset();
     Alert.alert('Success', status === 'draft' ? 'Event saved as draft!' : 'Event submitted for approval!', [
       { text: 'OK', onPress: () => router.replace('/(organizer)/events') },
@@ -225,10 +227,10 @@ export default function CreateEventScreen() {
               </View>
             ))}
             <View style={styles.submitButtons}>
-              <TouchableOpacity style={[styles.draftBtn, { borderColor: '#FF1E2D' }]} onPress={() => saveToSupabase('draft')} activeOpacity={0.8}>
+              <TouchableOpacity style={[styles.draftBtn, { borderColor: '#FF1E2D' }]} onPress={() => saveEvent('draft')} activeOpacity={0.8}>
                 <Text style={styles.draftBtnText}>Save as Draft</Text>
               </TouchableOpacity>
-              <GradientButton label="Submit for Approval" onPress={() => saveToSupabase('pending_approval')} loading={saving} />
+              <GradientButton label="Submit for Approval" onPress={() => saveEvent('pending_approval')} loading={saving} />
             </View>
           </View>
         );

@@ -5,7 +5,8 @@ import { Search, X } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { EventCard } from '@/components/participant/EventCard';
 import { useTheme } from '@/hooks/useTheme';
-import { supabase } from '@/lib/supabase';
+import { getCollection } from '@/lib/db';
+import { where, limit } from 'firebase/firestore';
 import { Event } from '@/types';
 
 const MOCK_EVENTS: Partial<Event>[] = [
@@ -36,8 +37,10 @@ export default function ExploreScreen() {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const { data } = await supabase.from('events').select('*').eq('status', 'live').limit(30);
-      if (data && data.length > 0) setEvents(data);
+      try {
+        const data = await getCollection<Event>('events', [where('status', '==', 'live'), limit(30)]);
+        if (data.length > 0) setEvents(data);
+      } catch {}
       setLoading(false);
     })();
   }, []);

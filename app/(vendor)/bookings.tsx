@@ -6,7 +6,8 @@ import { useAuthStore } from '@/store/authStore';
 import { StatusBadge } from '@/components/ui/Badge';
 import { GradientButton } from '@/components/ui/GradientButton';
 import { useTheme } from '@/hooks/useTheme';
-import { supabase } from '@/lib/supabase';
+import { getCollection, updateDocument } from '@/lib/db';
+import { where, orderBy } from 'firebase/firestore';
 import { VendorBooking } from '@/types';
 
 export default function VendorBookingsScreen() {
@@ -21,16 +22,19 @@ export default function VendorBookingsScreen() {
 
   const fetchBookings = async () => {
     if (!user?.id) { setLoading(false); return; }
-    const { data: v } = await supabase.from('vendors').select('id').eq('uid', user.id).maybeSingle();
-    if (!v) { setLoading(false); return; }
-    setVendorId(v.id);
-    const { data } = await supabase.from('vendor_bookings').select('*').eq('vendor_id', v.id).order('created_at', { ascending: false });
-    setBookings((data as VendorBooking[]) ?? []);
+    try {
+      const vendors = await getCollection<any>('vendors', [where('uid', '==', user.id)]);
+      const vendor = vendors[0] ?? null;
+      if (!vendor) { setLoading(false); return; }
+      setVendorId(vendor.id);
+      const data = await getCollection<VendorBooking>('vendor_bookings', [where('vendor_id', '==', vendor.id), orderBy('created_at', 'desc')]);
+      setBookings(data);
+    } catch {}
     setLoading(false);
   };
 
   const updateStatus = async (id: string, status: 'accepted' | 'declined') => {
-    await supabase.from('vendor_bookings').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
+    try { await updateDocument('vendor_bookings', id, { status }); } catch {}
     setBookings((prev) => prev.map((b) => b.id === id ? { ...b, status } : b));
   };
 

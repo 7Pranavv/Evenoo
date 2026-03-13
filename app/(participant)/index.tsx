@@ -10,7 +10,8 @@ import { router } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import { EventCard } from '@/components/participant/EventCard';
 import { useTheme } from '@/hooks/useTheme';
-import { supabase } from '@/lib/supabase';
+import { getCollection } from '@/lib/db';
+import { where, limit } from 'firebase/firestore';
 import { Event } from '@/types';
 
 const { width } = Dimensions.get('window');
@@ -61,8 +62,10 @@ export default function HomeScreen() {
 
   const fetchEvents = async () => {
     setLoading(true);
-    const { data } = await supabase.from('events').select('*').eq('status', 'live').limit(20);
-    if (data && data.length > 0) setEvents(data);
+    try {
+      const data = await getCollection<Event>('events', [where('status', '==', 'live'), limit(20)]);
+      if (data.length > 0) setEvents(data);
+    } catch {}
     setLoading(false);
   };
 
@@ -74,7 +77,7 @@ export default function HomeScreen() {
         <View style={[styles.headerSection, { paddingTop: insets.top + 12 }]}>
           <View>
             <Text style={[styles.greeting, { color: colors.textMuted }]}>{greeting()},</Text>
-            <Text style={[styles.userName, { color: colors.textPrimary }]}>{user?.name?.split(' ')[0] ?? 'Student'} 👋</Text>
+            <Text style={[styles.userName, { color: colors.textPrimary }]}>{user?.name?.split(' ')[0] ?? 'Student'}</Text>
           </View>
           <TouchableOpacity style={[styles.notifBtn, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => router.push('/(participant)/notifications')} activeOpacity={0.7}>
             <Bell size={20} color={colors.textPrimary} />

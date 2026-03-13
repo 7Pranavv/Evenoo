@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, ScrollView, Modal, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Calendar, User, X, Check, XCircle } from 'lucide-react-native';
+import { Calendar, User, X, Check, Circle as XCircle } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
-import { supabase } from '@/lib/supabase';
+import { getCollection, updateDocument, createDocument } from '@/lib/db';
+import { where, orderBy } from 'firebase/firestore';
 import { Event } from '@/types';
 
 export default function ApprovalsScreen() {
@@ -23,14 +24,9 @@ export default function ApprovalsScreen() {
   const fetchPendingEvents = async () => {
     try {
       setLoading(true);
-      const { data } = await supabase
-        .from('events')
-        .select('*')
-        .eq('status', 'pending_approval')
-        .order('created_at', { ascending: false });
-      setEvents((data as Event[]) ?? []);
-    } catch (error) {
-      console.error('Error fetching pending events:', error);
+      const data = await getCollection<Event>('events', [where('status', '==', 'pending_approval'), orderBy('created_at', 'desc')]);
+      setEvents(data);
+    } catch {
     } finally {
       setLoading(false);
     }
@@ -40,23 +36,12 @@ export default function ApprovalsScreen() {
     if (!selectedEvent) return;
     setActionLoading(true);
     try {
-      const { error } = await supabase
-        .from('events')
-        .update({
-          status: 'live',
-          admin_notes: notes,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', selectedEvent.id);
-
-      if (!error) {
-        await createNotification(selectedEvent.created_by, 'approved', notes);
-        setModalVisible(false);
-        setNotes('');
-        fetchPendingEvents();
-      }
-    } catch (error) {
-      console.error('Error approving event:', error);
+      await updateDocument('events', selectedEvent.id, { status: 'live', admin_notes: notes });
+      await createNotification(selectedEvent.created_by, 'approved', notes);
+      setModalVisible(false);
+      setNotes('');
+      fetchPendingEvents();
+    } catch {
     } finally {
       setActionLoading(false);
     }
@@ -66,23 +51,12 @@ export default function ApprovalsScreen() {
     if (!selectedEvent) return;
     setActionLoading(true);
     try {
-      const { error } = await supabase
-        .from('events')
-        .update({
-          status: 'draft',
-          admin_notes: notes,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', selectedEvent.id);
-
-      if (!error) {
-        await createNotification(selectedEvent.created_by, 'rejected', notes);
-        setModalVisible(false);
-        setNotes('');
-        fetchPendingEvents();
-      }
-    } catch (error) {
-      console.error('Error rejecting event:', error);
+      await updateDocument('events', selectedEvent.id, { status: 'draft', admin_notes: notes });
+      await createNotification(selectedEvent.created_by, 'rejected', notes);
+      setModalVisible(false);
+      setNotes('');
+      fetchPendingEvents();
+    } catch {
     } finally {
       setActionLoading(false);
     }
@@ -90,15 +64,15 @@ export default function ApprovalsScreen() {
 
   const createNotification = async (userId: string, type: 'approved' | 'rejected', message: string) => {
     try {
-      await supabase.from('notifications').insert({
+      await createDocument('notifications', {
         recipient_uid: userId,
         title: type === 'approved' ? 'Event Approved' : 'Event Needs Changes',
         body: message || (type === 'approved' ? 'Your event has been approved and is now live!' : 'Your event submission was rejected. Please review and resubmit.'),
         type: 'event_status',
         related_id: selectedEvent?.id,
+        read: false,
       });
-    } catch (error) {
-      console.error('Error creating notification:', error);
+    } catch {
     }
   };
 

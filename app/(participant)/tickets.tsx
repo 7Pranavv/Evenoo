@@ -5,7 +5,8 @@ import { Ticket as TicketIcon } from 'lucide-react-native';
 import { useAuthStore } from '@/store/authStore';
 import { TicketCard } from '@/components/participant/TicketCard';
 import { useTheme } from '@/hooks/useTheme';
-import { supabase } from '@/lib/supabase';
+import { getCollection, getDocument } from '@/lib/db';
+import { where, orderBy } from 'firebase/firestore';
 import { Ticket } from '@/types';
 
 const MOCK_TICKETS: Ticket[] = [
@@ -24,8 +25,18 @@ export default function TicketsScreen() {
 
   const fetchTickets = async () => {
     if (!user?.id) { setTickets(MOCK_TICKETS); setLoading(false); return; }
-    const { data } = await supabase.from('tickets').select('*, events(id, name, event_start, venue_name, platform_name, banner_url)').eq('uid', user.id).order('issued_at', { ascending: false });
-    setTickets(data && data.length > 0 ? data as Ticket[] : MOCK_TICKETS);
+    try {
+      const data = await getCollection<Ticket>('tickets', [where('uid', '==', user.id), orderBy('issued_at', 'desc')]);
+      const enriched = await Promise.all(data.map(async (t) => {
+        try {
+          const event = await getDocument<any>('events', t.event_id);
+          return { ...t, events: event ? { id: event.id, name: event.name, event_start: event.event_start, venue_name: event.venue_name, platform_name: event.platform_name, banner_url: event.banner_url } : null };
+        } catch { return t; }
+      }));
+      setTickets(enriched.length > 0 ? enriched as Ticket[] : MOCK_TICKETS);
+    } catch {
+      setTickets(MOCK_TICKETS);
+    }
     setLoading(false);
   };
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
 import { router } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
@@ -6,38 +6,21 @@ import { useAuthStore } from '@/store/authStore';
 export default function Index() {
   const user = useAuthStore((state) => state.user);
   const initialized = useAuthStore((state) => state.initialized);
-  const session = useAuthStore((state) => state.session);
   const initialize = useAuthStore((state) => state.initialize);
-  const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
-    console.log('[Index] Mounting, initializing auth');
     initialize();
-
-    const timer = setTimeout(() => {
-      console.log('[Index] Auth initialization timeout - proceeding to welcome');
-      setTimedOut(true);
-    }, 5000);
-
-    return () => clearTimeout(timer);
-  }, [initialize]);
+  }, []);
 
   useEffect(() => {
-    console.log('[Index] Auth state changed:', { initialized, hasSession: !!session, hasUser: !!user });
-    if (!initialized && !timedOut) {
-      console.log('[Index] Still initializing...');
-      return;
-    }
+    if (!initialized) return;
 
-    if (!session || !user) {
-      console.log('[Index] No session/user, routing to welcome');
+    if (!user) {
       router.replace('/(auth)/welcome');
       return;
     }
 
-    const role = user.role;
-    console.log('[Index] Routing based on role:', role);
-    switch (role) {
+    switch (user.role) {
       case 'organizer':
         router.replace('/(organizer)');
         break;
@@ -50,7 +33,7 @@ export default function Index() {
       default:
         router.replace('/(participant)');
     }
-  }, [initialized, user, session, timedOut]);
+  }, [initialized, user]);
 
   return (
     <View style={styles.container}>

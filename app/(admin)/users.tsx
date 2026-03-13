@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, ScrollView, Modal, Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Mail, Shield, X, Edit2 } from 'lucide-react-native';
+import { Mail, Shield, X, CreditCard as Edit2 } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
-import { supabase } from '@/lib/supabase';
+import { getCollection } from '@/lib/db';
+import { orderBy } from 'firebase/firestore';
 import { User } from '@/types';
 
 export default function UsersScreen() {
@@ -22,13 +23,9 @@ export default function UsersScreen() {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const { data } = await supabase
-        .from('users')
-        .select('*')
-        .order('created_at', { ascending: false });
-      setUsers((data as User[]) ?? []);
-    } catch (error) {
-      console.error('Error fetching users:', error);
+      const data = await getCollection<User>('users', [orderBy('created_at', 'desc')]);
+      setUsers(data);
+    } catch {
     } finally {
       setLoading(false);
     }

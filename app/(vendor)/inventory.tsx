@@ -7,7 +7,8 @@ import { StatusBadge } from '@/components/ui/Badge';
 import { GradientButton } from '@/components/ui/GradientButton';
 import { Input } from '@/components/ui/Input';
 import { useTheme } from '@/hooks/useTheme';
-import { supabase } from '@/lib/supabase';
+import { getCollection, createDocument, setDocument, updateDocument, deleteDocument } from '@/lib/db';
+import { where, orderBy } from 'firebase/firestore';
 import { VendorInventoryItem } from '@/types';
 
 const ITEM_CATEGORIES = ['Photography', 'Catering', 'Sound', 'Lighting', 'Decoration', 'Anchor/MC', 'Security', 'Other'];
@@ -29,36 +30,42 @@ export default function InventoryScreen() {
   const fetchInventory = async () => {
     if (!user?.id) { setLoading(false); return; }
     setLoading(true);
-    let vid = vendorId;
-    if (!vid) {
-      const { data: v } = await supabase.from('vendors').select('id').eq('uid', user.id).maybeSingle();
-      if (!v) {
-        await supabase.from('vendors').insert({ uid: user.id, name: user.name, category: 'General', contact_email: user.email });
-        const { data: newV } = await supabase.from('vendors').select('id').eq('uid', user.id).maybeSingle();
-        vid = newV?.id ?? null;
-      } else vid = v.id;
-      setVendorId(vid);
-    }
-    if (!vid) { setLoading(false); return; }
-    const { data } = await supabase.from('vendor_inventory').select('*').eq('vendor_id', vid).order('created_at', { ascending: false });
-    setItems((data as VendorInventoryItem[]) ?? []);
+    try {
+      let vid = vendorId;
+      if (!vid) {
+        const vendors = await getCollection<any>('vendors', [where('uid', '==', user.id)]);
+        let vendor = vendors[0] ?? null;
+        if (!vendor) {
+          const newId = await createDocument('vendors', { uid: user.id, name: user.name, category: 'General', contact_email: user.email });
+          vid = newId;
+        } else {
+          vid = vendor.id;
+        }
+        setVendorId(vid);
+      }
+      if (!vid) { setLoading(false); return; }
+      const data = await getCollection<VendorInventoryItem>('vendor_inventory', [where('vendor_id', '==', vid), orderBy('created_at', 'desc')]);
+      setItems(data);
+    } catch {}
     setLoading(false);
   };
 
   const addItem = async () => {
     if (!form.name || !vendorId) return;
     setSaving(true);
-    await supabase.from('vendor_inventory').insert({
-      vendor_id: vendorId,
-      name: form.name,
-      category: form.category,
-      description: form.description || null,
-      price: parseFloat(form.price || '0'),
-      pricing_type: form.pricing_type,
-      quantity: parseInt(form.quantity || '1'),
-      availability_status: 'available',
-    });
-    await fetchInventory();
+    try {
+      await createDocument('vendor_inventory', {
+        vendor_id: vendorId,
+        name: form.name,
+        category: form.category,
+        description: form.description || null,
+        price: parseFloat(form.price || '0'),
+        pricing_type: form.pricing_type,
+        quantity: parseInt(form.quantity || '1'),
+        availability_status: 'available',
+      });
+      await fetchInventory();
+    } catch {}
     setShowModal(false);
     setSaving(false);
     setForm({ name: '', category: 'Photography', description: '', price: '', pricing_type: 'per_event', quantity: '1' });
@@ -66,7 +73,7 @@ export default function InventoryScreen() {
 
   const toggleAvailability = async (item: VendorInventoryItem) => {
     const newStatus = item.availability_status === 'available' ? 'unavailable' : 'available';
-    await supabase.from('vendor_inventory').update({ availability_status: newStatus }).eq('id', item.id);
+    try { await updateDocument('vendor_inventory', item.id, { availability_status: newStatus }); } catch {}
     setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, availability_status: newStatus } : i));
   };
 
@@ -74,7 +81,7 @@ export default function InventoryScreen() {
     Alert.alert('Delete Item', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
-        await supabase.from('vendor_inventory').delete().eq('id', id);
+        try { await deleteDocument('vendor_inventory', id); } catch {}
         setItems((prev) => prev.filter((i) => i.id !== id));
       }},
     ]);

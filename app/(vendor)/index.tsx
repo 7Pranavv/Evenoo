@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Package, ClipboardList, CheckCircle, Clock } from 'lucide-react-native';
+import { Package, ClipboardList, CircleCheck as CheckCircle, Clock } from 'lucide-react-native';
 import { useAuthStore } from '@/store/authStore';
 import { StatCard } from '@/components/organizer/StatCard';
 import { GradientButton } from '@/components/ui/GradientButton';
 import { useTheme } from '@/hooks/useTheme';
-import { supabase } from '@/lib/supabase';
+import { getCollection, getDocument } from '@/lib/db';
+import { where } from 'firebase/firestore';
 
 export default function VendorDashboard() {
   const { user } = useAuthStore();
@@ -19,17 +20,20 @@ export default function VendorDashboard() {
   useEffect(() => {
     if (!user?.id) return;
     (async () => {
-      const { data: vendor } = await supabase.from('vendors').select('id').eq('uid', user.id).maybeSingle();
-      if (!vendor) return;
-      setVendorId(vendor.id);
-      const { data: items } = await supabase.from('vendor_inventory').select('id, availability_status').eq('vendor_id', vendor.id);
-      const { data: bookings } = await supabase.from('vendor_bookings').select('id, status').eq('vendor_id', vendor.id);
-      setStats({
-        activeItems: items?.filter((i) => i.availability_status === 'available').length ?? 0,
-        totalBookings: bookings?.length ?? 0,
-        accepted: bookings?.filter((b) => b.status === 'accepted').length ?? 0,
-        pending: bookings?.filter((b) => b.status === 'pending').length ?? 0,
-      });
+      try {
+        const vendors = await getCollection<any>('vendors', [where('uid', '==', user.id)]);
+        const vendor = vendors[0] ?? null;
+        if (!vendor) return;
+        setVendorId(vendor.id);
+        const items = await getCollection<any>('vendor_inventory', [where('vendor_id', '==', vendor.id)]);
+        const bookings = await getCollection<any>('vendor_bookings', [where('vendor_id', '==', vendor.id)]);
+        setStats({
+          activeItems: items.filter((i: any) => i.availability_status === 'available').length,
+          totalBookings: bookings.length,
+          accepted: bookings.filter((b: any) => b.status === 'accepted').length,
+          pending: bookings.filter((b: any) => b.status === 'pending').length,
+        });
+      } catch {}
     })();
   }, [user?.id]);
 

@@ -7,7 +7,7 @@ import { ArrowLeft, Calendar, MapPin, Globe, Users, Trophy, Award, BadgeCheck, C
 import { Badge } from '@/components/ui/Badge';
 import { GradientButton } from '@/components/ui/GradientButton';
 import { useTheme } from '@/hooks/useTheme';
-import { supabase } from '@/lib/supabase';
+import { getDocument } from '@/lib/db';
 import { Event } from '@/types';
 
 const { width } = Dimensions.get('window');
@@ -65,8 +65,8 @@ export default function EventDetailScreen() {
     if (!id || MOCK_MAP[id]) return;
     (async () => {
       setLoading(true);
-      const { data } = await supabase.from('events').select('*').eq('id', id).maybeSingle();
-      if (data) setEvent(data as Event);
+      const data = await getDocument<Event>('events', id as string);
+      if (data) setEvent(data);
       setLoading(false);
     })();
   }, [id]);

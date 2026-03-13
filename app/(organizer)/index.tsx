@@ -9,7 +9,8 @@ import { StatCard } from '@/components/organizer/StatCard';
 import { StatusBadge } from '@/components/ui/Badge';
 import { GradientButton } from '@/components/ui/GradientButton';
 import { useTheme } from '@/hooks/useTheme';
-import { supabase } from '@/lib/supabase';
+import { getCollection } from '@/lib/db';
+import { where, orderBy, limit } from 'firebase/firestore';
 import { Event } from '@/types';
 
 export default function OrganizerDashboard() {
@@ -24,8 +25,10 @@ export default function OrganizerDashboard() {
   const fetchEvents = async () => {
     if (!user?.id) { setLoading(false); return; }
     setLoading(true);
-    const { data } = await supabase.from('events').select('*').eq('created_by', user.id).order('created_at', { ascending: false }).limit(10);
-    setEvents((data as Event[]) ?? []);
+    try {
+      const data = await getCollection<Event>('events', [where('created_by', '==', user.id), orderBy('created_at', 'desc'), limit(10)]);
+      setEvents(data);
+    } catch {}
     setLoading(false);
   };
 

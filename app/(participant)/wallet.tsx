@@ -6,7 +6,8 @@ import { TrendingUp, TrendingDown, Plus, X } from 'lucide-react-native';
 import { useAuthStore } from '@/store/authStore';
 import { GradientButton } from '@/components/ui/GradientButton';
 import { useTheme } from '@/hooks/useTheme';
-import { supabase } from '@/lib/supabase';
+import { getCollection, createDocument, updateDocument } from '@/lib/db';
+import { where, orderBy } from 'firebase/firestore';
 import { WalletTransaction } from '@/types';
 
 const MOCK_TX: WalletTransaction[] = [
@@ -28,18 +29,22 @@ export default function WalletScreen() {
 
   const fetchTransactions = async () => {
     if (!user?.id) return;
-    const { data } = await supabase.from('wallet_transactions').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
-    if (data && data.length > 0) setTransactions(data);
+    try {
+      const data = await getCollection<WalletTransaction>('wallet_transactions', [where('user_id', '==', user.id), orderBy('created_at', 'desc')]);
+      if (data.length > 0) setTransactions(data);
+    } catch {}
   };
 
   const handleTopup = async () => {
     const amount = parseFloat(topupAmount);
     if (!amount || amount <= 0 || !user?.id) return;
     setTopupLoading(true);
-    await supabase.from('wallet_transactions').insert({ user_id: user.id, type: 'credit', amount, description: 'Wallet top-up' });
-    await supabase.from('users').update({ wallet_balance: (user.wallet_balance ?? 0) + amount }).eq('id', user.id);
-    await fetchUser(user.id);
-    await fetchTransactions();
+    try {
+      await createDocument('wallet_transactions', { user_id: user.id, type: 'credit', amount, description: 'Wallet top-up', event_id: null });
+      await updateDocument('users', user.id, { wallet_balance: (user.wallet_balance ?? 0) + amount });
+      await fetchUser(user.id);
+      await fetchTransactions();
+    } catch {}
     setShowTopup(false);
     setTopupAmount('');
     setTopupLoading(false);

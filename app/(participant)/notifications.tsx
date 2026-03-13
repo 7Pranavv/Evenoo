@@ -5,7 +5,8 @@ import { ArrowLeft, Bell } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import { useTheme } from '@/hooks/useTheme';
-import { supabase } from '@/lib/supabase';
+import { getCollection, updateDocument } from '@/lib/db';
+import { where, orderBy } from 'firebase/firestore';
 import { Notification } from '@/types';
 
 const MOCK_NOTIFS: Notification[] = [
@@ -22,14 +23,16 @@ export default function NotificationsScreen() {
   useEffect(() => {
     if (!user?.id) return;
     (async () => {
-      const { data } = await supabase.from('notifications').select('*').eq('recipient_uid', user.id).order('created_at', { ascending: false });
-      if (data && data.length > 0) setNotifs(data);
+      try {
+        const data = await getCollection<Notification>('notifications', [where('recipient_uid', '==', user.id), orderBy('created_at', 'desc')]);
+        if (data.length > 0) setNotifs(data);
+      } catch {}
     })();
   }, []);
 
   const markRead = async (id: string) => {
     setNotifs((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
-    await supabase.from('notifications').update({ read: true }).eq('id', id);
+    try { await updateDocument('notifications', id, { read: true }); } catch {}
   };
 
   const relativeTime = (d: string) => {
